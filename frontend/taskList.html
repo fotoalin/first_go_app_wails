@@ -9,7 +9,7 @@
                     hx-swap="innerHTML"
                     hx-trigger="click"
                     hx-vals='{
-                        "task": "{{.Task}}",
+                        "taskId": "{{.ID}}",
                         "completed": "{{if not .Completed}}true{{else}}false{{end}}",
                         "showCompleted": "{{.Completed}}"
                     }'
@@ -22,7 +22,7 @@
                       hx-post="/editTask" 
                       hx-target="#taskList" 
                       hx-swap="innerHTML">
-                    <input type="hidden" name="oldTask" value="{{.Task}}">
+                    <input type="hidden" name="taskId" value="{{.ID}}">
                     <input type="hidden" name="showCompleted" value="{{.Completed}}">
                     <input 
                         type="text" 
@@ -45,7 +45,7 @@
                     hx-target="#taskList"
                     hx-swap="innerHTML"
                     hx-vals='{
-                        "task": "{{.Task}}",
+                        "taskId": "{{.ID}}",
                         "showCompleted": "{{.Completed}}"
                     }'
                     class="text-red-500 hover:text-red-700"

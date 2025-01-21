@@ -18,6 +18,7 @@ import (
 var assets embed.FS
 
 type Task struct {
+	ID        int64
 	Task      string
 	Completed bool
 }
@@ -96,16 +97,16 @@ func (a *App) CompleteTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	task := r.FormValue("task")
+	taskID := r.FormValue("taskId")
 	isCompleted := r.FormValue("completed")
 	showCompleted := r.FormValue("showCompleted")
 
-	fmt.Printf("Task: %s, Completing: %s, ShowCompleted: %s\n", task, isCompleted, showCompleted)
+	fmt.Printf("TaskID: %s, Completing: %s, ShowCompleted: %s\n", taskID, isCompleted, showCompleted)
 
 	completed := isCompleted == "true"
 
 	a.mu.Lock()
-	_, err = a.db.Exec("UPDATE tasks SET completed = ? WHERE task = ?", completed, task)
+	_, err = a.db.Exec("UPDATE tasks SET completed = ? WHERE id = ?", completed, taskID)
 	a.mu.Unlock()
 
 	if err != nil {
@@ -125,9 +126,9 @@ func (a *App) renderTasks(w http.ResponseWriter, completed bool) {
 	var rows *sql.Rows
 	var err error
 	if completed {
-		rows, err = a.db.Query("SELECT task, completed FROM tasks WHERE completed = 1 ORDER BY id DESC")
+		rows, err = a.db.Query("SELECT id, task, completed FROM tasks WHERE completed = 1 ORDER BY id DESC")
 	} else {
-		rows, err = a.db.Query("SELECT task, completed FROM tasks WHERE completed = 0 ORDER BY id DESC")
+		rows, err = a.db.Query("SELECT id, task, completed FROM tasks WHERE completed = 0 ORDER BY id DESC")
 	}
 	if err != nil {
 		http.Error(w, "Error fetching tasks: "+err.Error(), http.StatusInternalServerError)
@@ -138,7 +139,7 @@ func (a *App) renderTasks(w http.ResponseWriter, completed bool) {
 	var tasks []Task
 	for rows.Next() {
 		var task Task
-		if err := rows.Scan(&task.Task, &task.Completed); err != nil {
+		if err := rows.Scan(&task.ID, &task.Task, &task.Completed); err != nil {
 			http.Error(w, "Error scanning task: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -174,11 +175,11 @@ func (a *App) DeleteTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	task := r.FormValue("task")
+	taskID := r.FormValue("taskId")
 	showCompleted := r.FormValue("showCompleted") == "true"
 
 	a.mu.Lock()
-	_, err = a.db.Exec("DELETE FROM tasks WHERE task = ?", task)
+	_, err = a.db.Exec("DELETE FROM tasks WHERE id = ?", taskID)
 	a.mu.Unlock()
 
 	if err != nil {
@@ -201,7 +202,7 @@ func (a *App) EditTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	oldTask := r.FormValue("oldTask")
+	taskID := r.FormValue("taskId")
 	newTask := r.FormValue("newTask")
 	showCompleted := r.FormValue("showCompleted") == "true"
 
@@ -211,7 +212,7 @@ func (a *App) EditTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a.mu.Lock()
-	_, err = a.db.Exec("UPDATE tasks SET task = ? WHERE task = ?", newTask, oldTask)
+	_, err = a.db.Exec("UPDATE tasks SET task = ? WHERE id = ?", newTask, taskID)
 	a.mu.Unlock()
 
 	if err != nil {
