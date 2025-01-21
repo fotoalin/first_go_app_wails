@@ -162,6 +162,66 @@ func (a *App) handleIndex(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (a *App) DeleteTask(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	err := r.ParseForm()
+	if err != nil {
+		http.Error(w, "Error parsing form: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	task := r.FormValue("task")
+	showCompleted := r.FormValue("showCompleted") == "true"
+
+	a.mu.Lock()
+	_, err = a.db.Exec("DELETE FROM tasks WHERE task = ?", task)
+	a.mu.Unlock()
+
+	if err != nil {
+		http.Error(w, "Error deleting task: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	a.renderTasks(w, showCompleted)
+}
+
+func (a *App) EditTask(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	err := r.ParseForm()
+	if err != nil {
+		http.Error(w, "Error parsing form: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	oldTask := r.FormValue("oldTask")
+	newTask := r.FormValue("newTask")
+	showCompleted := r.FormValue("showCompleted") == "true"
+
+	if newTask == "" {
+		http.Error(w, "Task cannot be empty", http.StatusBadRequest)
+		return
+	}
+
+	a.mu.Lock()
+	_, err = a.db.Exec("UPDATE tasks SET task = ? WHERE task = ?", newTask, oldTask)
+	a.mu.Unlock()
+
+	if err != nil {
+		http.Error(w, "Error updating task: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	a.renderTasks(w, showCompleted)
+}
+
 func main() {
 	app := &App{}
 
@@ -185,6 +245,8 @@ func main() {
 	http.HandleFunc("/getTasks", app.GetTasks)
 	http.HandleFunc("/getCompletedTasks", app.GetCompletedTasks)
 	http.HandleFunc("/completeTask", app.CompleteTask)
+	http.HandleFunc("/deleteTask", app.DeleteTask)
+	http.HandleFunc("/editTask", app.EditTask)
 
 	log.Println("Starting HTTP server on http://localhost:8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {

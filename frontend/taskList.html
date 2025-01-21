@@ -1,21 +1,58 @@
 {{ define "taskList" }}
     {{range .}}
-        <li class="flex items-center gap-2 mb-2">
-            <input 
-                type="checkbox" 
-                hx-post="/completeTask"
-                hx-target="#taskList"
-                hx-swap="innerHTML"
-                hx-trigger="click"
-                hx-vals='{
-                    "task": "{{.Task}}",
-                    "completed": "{{if not .Completed}}true{{else}}false{{end}}",
-                    "showCompleted": "{{.Completed}}"
-                }'
-                {{if .Completed}}checked{{end}}
-                class="w-4 h-4"
-            >
-            <span class="{{if .Completed}}line-through{{end}}">{{.Task}}</span>
+        <li class="flex items-center justify-between gap-2 mb-2 group" x-data="{ editing: false }">
+            <div class="flex items-center gap-2">
+                <input 
+                    type="checkbox" 
+                    hx-post="/completeTask"
+                    hx-target="#taskList"
+                    hx-swap="innerHTML"
+                    hx-trigger="click"
+                    hx-vals='{
+                        "task": "{{.Task}}",
+                        "completed": "{{if not .Completed}}true{{else}}false{{end}}",
+                        "showCompleted": "{{.Completed}}"
+                    }'
+                    {{if .Completed}}checked{{end}}
+                    class="w-4 h-4"
+                >
+                <span class="{{if .Completed}}line-through{{end}}" x-show="!editing">{{.Task}}</span>
+                <form x-show="editing" 
+                      class="flex-1" 
+                      hx-post="/editTask" 
+                      hx-target="#taskList" 
+                      hx-swap="innerHTML">
+                    <input type="hidden" name="oldTask" value="{{.Task}}">
+                    <input type="hidden" name="showCompleted" value="{{.Completed}}">
+                    <input 
+                        type="text" 
+                        name="newTask" 
+                        value="{{.Task}}"
+                        class="border p-1 w-full"
+                        @keyup.escape="editing = false"
+                    >
+                </form>
+            </div>
+            <div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button 
+                    @click="editing = !editing"
+                    class="text-blue-500 hover:text-blue-700"
+                >
+                    ✎
+                </button>
+                <button 
+                    hx-post="/deleteTask"
+                    hx-target="#taskList"
+                    hx-swap="innerHTML"
+                    hx-vals='{
+                        "task": "{{.Task}}",
+                        "showCompleted": "{{.Completed}}"
+                    }'
+                    class="text-red-500 hover:text-red-700"
+                >
+                    ×
+                </button>
+            </div>
         </li>
     {{end}}
 {{end}}
