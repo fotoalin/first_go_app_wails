@@ -44,21 +44,21 @@ func (a *App) initializeDB() error {
 	return err
 }
 
-func (a *App) AddTask(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+func (a *App) AddTask(response http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodPost {
+		http.Error(response, "Invalid request method", http.StatusMethodNotAllowed)
 		return
 	}
 
-	err := r.ParseForm()
+	err := request.ParseForm()
 	if err != nil {
-		http.Error(w, "Error parsing form: "+err.Error(), http.StatusBadRequest)
+		http.Error(response, "Error parsing form: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	task := r.FormValue("task")
+	task := request.FormValue("task")
 	if task == "" {
-		http.Error(w, "Task cannot be empty", http.StatusBadRequest)
+		http.Error(response, "Task cannot be empty", http.StatusBadRequest)
 		return
 	}
 
@@ -67,12 +67,12 @@ func (a *App) AddTask(w http.ResponseWriter, r *http.Request) {
 	a.mu.Unlock()
 
 	if err != nil {
-		http.Error(w, "Error adding task: "+err.Error(), http.StatusInternalServerError)
+		http.Error(response, "Error adding task: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	// Only render the task list template after successful insertion
-	a.renderTasks(w, false)
+	a.renderTasks(response, false)
 }
 
 func (a *App) GetTasks(w http.ResponseWriter, r *http.Request) {
@@ -80,58 +80,58 @@ func (a *App) GetTasks(w http.ResponseWriter, r *http.Request) {
 	a.renderTasks(w, false)
 }
 
-func (a *App) GetCompletedTasks(w http.ResponseWriter, r *http.Request) {
+func (a *App) GetCompletedTasks(response http.ResponseWriter, request *http.Request) {
 	fmt.Println("GetCompletedTasks called")
-	a.renderTasks(w, true)
+	a.renderTasks(response, true)
 }
 
-func (a *App) CompleteTask(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+func (appInstance *App) CompleteTask(response http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodPost {
+		http.Error(response, "Invalid request method", http.StatusMethodNotAllowed)
 		return
 	}
 
-	err := r.ParseForm()
+	err := request.ParseForm()
 	if err != nil {
-		http.Error(w, "Error parsing form: "+err.Error(), http.StatusBadRequest)
+		http.Error(response, "Error parsing form: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	taskID := r.FormValue("taskId")
-	isCompleted := r.FormValue("completed")
-	showCompleted := r.FormValue("showCompleted")
+	taskID := request.FormValue("taskId")
+	isCompleted := request.FormValue("completed")
+	showCompleted := request.FormValue("showCompleted")
 
 	fmt.Printf("TaskID: %s, Completing: %s, ShowCompleted: %s\n", taskID, isCompleted, showCompleted)
 
 	completed := isCompleted == "true"
 
-	a.mu.Lock()
-	_, err = a.db.Exec("UPDATE tasks SET completed = ? WHERE id = ?", completed, taskID)
-	a.mu.Unlock()
+	appInstance.mu.Lock()
+	_, err = appInstance.db.Exec("UPDATE tasks SET completed = ? WHERE id = ?", completed, taskID)
+	appInstance.mu.Unlock()
 
 	if err != nil {
-		http.Error(w, "Error updating task: "+err.Error(), http.StatusInternalServerError)
+		http.Error(response, "Error updating task: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	// Show the same list we were viewing (completed or uncompleted)
-	a.renderTasks(w, showCompleted == "true")
+	appInstance.renderTasks(response, showCompleted == "true")
 }
 
 // Add Mutex for Safety
-func (a *App) renderTasks(w http.ResponseWriter, completed bool) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
+func (appInstance *App) renderTasks(response http.ResponseWriter, completed bool) {
+	appInstance.mu.Lock()
+	defer appInstance.mu.Unlock()
 
 	var rows *sql.Rows
 	var err error
 	if completed {
-		rows, err = a.db.Query("SELECT id, task, completed FROM tasks WHERE completed = 1 ORDER BY id DESC")
+		rows, err = appInstance.db.Query("SELECT id, task, completed FROM tasks WHERE completed = 1 ORDER BY id DESC")
 	} else {
-		rows, err = a.db.Query("SELECT id, task, completed FROM tasks WHERE completed = 0 ORDER BY id DESC")
+		rows, err = appInstance.db.Query("SELECT id, task, completed FROM tasks WHERE completed = 0 ORDER BY id DESC")
 	}
 	if err != nil {
-		http.Error(w, "Error fetching tasks: "+err.Error(), http.StatusInternalServerError)
+		http.Error(response, "Error fetching tasks: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
@@ -140,30 +140,30 @@ func (a *App) renderTasks(w http.ResponseWriter, completed bool) {
 	for rows.Next() {
 		var task Task
 		if err := rows.Scan(&task.ID, &task.Task, &task.Completed); err != nil {
-			http.Error(w, "Error scanning task: "+err.Error(), http.StatusInternalServerError)
+			http.Error(response, "Error scanning task: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 		tasks = append(tasks, task)
 	}
 
-	err = a.templates.ExecuteTemplate(w, "taskList", tasks)
+	err = appInstance.templates.ExecuteTemplate(response, "taskList", tasks)
 	if err != nil {
-		http.Error(w, "Error rendering template: "+err.Error(), http.StatusInternalServerError)
+		http.Error(response, "Error rendering template: "+err.Error(), http.StatusInternalServerError)
 	}
 }
 
-func (a *App) handleIndex(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/" {
-		http.NotFound(w, r)
+func (appInstance *App) handleIndex(responseWriter http.ResponseWriter, request *http.Request) {
+	if request.URL.Path != "/" {
+		http.NotFound(responseWriter, request)
 		return
 	}
-	err := a.templates.ExecuteTemplate(w, "index", nil)
+	err := appInstance.templates.ExecuteTemplate(responseWriter, "index", nil)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(responseWriter, err.Error(), http.StatusInternalServerError)
 	}
 }
 
-func (a *App) DeleteTask(w http.ResponseWriter, r *http.Request) {
+func (appInstance *App) DeleteTask(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 		return
@@ -178,49 +178,49 @@ func (a *App) DeleteTask(w http.ResponseWriter, r *http.Request) {
 	taskID := r.FormValue("taskId")
 	showCompleted := r.FormValue("showCompleted") == "true"
 
-	a.mu.Lock()
-	_, err = a.db.Exec("DELETE FROM tasks WHERE id = ?", taskID)
-	a.mu.Unlock()
+	appInstance.mu.Lock()
+	_, err = appInstance.db.Exec("DELETE FROM tasks WHERE id = ?", taskID)
+	appInstance.mu.Unlock()
 
 	if err != nil {
 		http.Error(w, "Error deleting task: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	a.renderTasks(w, showCompleted)
+	appInstance.renderTasks(w, showCompleted)
 }
 
-func (a *App) EditTask(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+func (appInstance *App) EditTask(responseWriter http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodPost {
+		http.Error(responseWriter, "Invalid request method", http.StatusMethodNotAllowed)
 		return
 	}
 
-	err := r.ParseForm()
+	err := request.ParseForm()
 	if err != nil {
-		http.Error(w, "Error parsing form: "+err.Error(), http.StatusBadRequest)
+		http.Error(responseWriter, "Error parsing form: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	taskID := r.FormValue("taskId")
-	newTask := r.FormValue("newTask")
-	showCompleted := r.FormValue("showCompleted") == "true"
+	taskID := request.FormValue("taskId")
+	newTask := request.FormValue("newTask")
+	showCompleted := request.FormValue("showCompleted") == "true"
 
 	if newTask == "" {
-		http.Error(w, "Task cannot be empty", http.StatusBadRequest)
+		http.Error(responseWriter, "Task cannot be empty", http.StatusBadRequest)
 		return
 	}
 
-	a.mu.Lock()
-	_, err = a.db.Exec("UPDATE tasks SET task = ? WHERE id = ?", newTask, taskID)
-	a.mu.Unlock()
+	appInstance.mu.Lock()
+	_, err = appInstance.db.Exec("UPDATE tasks SET task = ? WHERE id = ?", newTask, taskID)
+	appInstance.mu.Unlock()
 
 	if err != nil {
-		http.Error(w, "Error updating task: "+err.Error(), http.StatusInternalServerError)
+		http.Error(responseWriter, "Error updating task: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	a.renderTasks(w, showCompleted)
+	appInstance.renderTasks(responseWriter, showCompleted)
 }
 
 func main() {
