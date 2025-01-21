@@ -1,5 +1,4 @@
 {{ define "taskList" }}
-
     {{range .}}
         <li class="flex items-center gap-2 mb-2">
             <input 
@@ -7,12 +6,16 @@
                 hx-post="/completeTask"
                 hx-target="#taskList"
                 hx-swap="innerHTML"
-                hx-vals='{"task": "{{.Task}}", "completed": {{if .Completed}}false{{else}}true{{end}}}' 
+                hx-trigger="click"
+                hx-vals='{
+                    "task": "{{.Task}}",
+                    "completed": "{{if not .Completed}}true{{else}}false{{end}}",
+                    "showCompleted": "{{.Completed}}"
+                }'
                 {{if .Completed}}checked{{end}}
                 class="w-4 h-4"
             >
             <span class="{{if .Completed}}line-through{{end}}">{{.Task}}</span>
         </li>
     {{end}}
-
 {{end}}

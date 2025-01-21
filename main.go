@@ -85,30 +85,36 @@ func (a *App) GetCompletedTasks(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) CompleteTask(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("CompleteTask called")
 	if r.Method != http.MethodPost {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 		return
 	}
+
 	err := r.ParseForm()
 	if err != nil {
 		http.Error(w, "Error parsing form: "+err.Error(), http.StatusBadRequest)
 		return
 	}
-	a.mu.Lock()
-	defer a.mu.Unlock()
 
 	task := r.FormValue("task")
-	is_completed := r.FormValue("completed") == "true"
-	fmt.Printf("Updating task '%s' to completed=%v\n", task, is_completed)
+	isCompleted := r.FormValue("completed")
+	showCompleted := r.FormValue("showCompleted")
 
-	_, err = a.db.Exec("UPDATE tasks SET completed = ? WHERE task = ?", is_completed, task)
+	fmt.Printf("Task: %s, Completing: %s, ShowCompleted: %s\n", task, isCompleted, showCompleted)
+
+	completed := isCompleted == "true"
+
+	a.mu.Lock()
+	_, err = a.db.Exec("UPDATE tasks SET completed = ? WHERE task = ?", completed, task)
+	a.mu.Unlock()
+
 	if err != nil {
 		http.Error(w, "Error updating task: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	a.renderTasks(w, false) // Always render uncompleted tasks after updating
+	// Show the same list we were viewing (completed or uncompleted)
+	a.renderTasks(w, showCompleted == "true")
 }
 
 // Add Mutex for Safety
