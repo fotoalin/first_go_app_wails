@@ -1,0 +1,23 @@
+{{ define "index" }}
+{{ template "base" . }}
+{{ end }}
+
+{{ define "content" }}
+<h1 class="text-2xl font-bold mb-4">Task Manager</h1>
+
+<form hx-post="/addTask" hx-target="#taskList" hx-swap="innerHTML" method="POST" id="taskForm">
+    <input id="task" name="task" type="text" placeholder="Enter a task" class="border p-2 w-full mb-4">
+    <button id="addTaskBtn" class="bg-blue-500 text-white p-2 rounded w-full" type="submit">Add Task</button>
+</form>
+
+<p id="output" class="mt-4 text-lg"></p>
+
+<div class="mt-4 flex gap-2">
+    <button class="bg-gray-300 p-2 rounded flex-1" hx-get="/getTasks" hx-target="#taskList" hx-swap="innerHTML">Uncompleted Tasks</button>
+    <button class="bg-gray-300 p-2 rounded flex-1" hx-get="/getCompletedTasks" hx-target="#taskList" hx-swap="innerHTML">Completed Tasks</button>
+</div>
+
+<ul id="taskList" class="mt-4 text-lg" hx-get="/getTasks" hx-trigger="load">
+    {{ template "taskList" . }}
+</ul>
+{{ end }}

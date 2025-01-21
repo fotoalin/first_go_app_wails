@@ -1,0 +1,1 @@
+// No JavaScript needed as htmx handles the swapping of task lists
