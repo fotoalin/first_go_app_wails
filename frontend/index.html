@@ -22,7 +22,7 @@
     <button class="bg-gray-300 p-2 rounded flex-1" hx-get="/getCompletedTasks" hx-target="#taskList" hx-swap="innerHTML">Completed Tasks</button>
 </div>
 
-<ul id="taskList" class="mt-4 text-lg" hx-get="/getTasks" hx-trigger="load">
+<ul id="taskList" class="mt-4 text-lg h-64 overflow-y-scroll" hx-get="/getTasks" hx-trigger="load">
     {{ template "taskList" . }}
 </ul>
 {{ end }}
